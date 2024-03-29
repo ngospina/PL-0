@@ -1,4 +1,4 @@
-program PL0(input, output, progfile, listfile);
+program PL0(input, output, progfile, listfile, objfile);
 {PL/0 compiler with code generation}
 label 99;
 
@@ -62,7 +62,7 @@ var ch: char;        {last character read}
              constant: (val: integer);
              variable, prozedure: (level, adr: integer)
          end;
-  progfile, listfile: text;
+  progfile, listfile, objfile: text;
   out: integer;
 
 procedure error(n: integer);
@@ -419,6 +419,16 @@ begin {block} dx := 3; tx0 := tx; table[tx].adr := cx; gen(jmp, 0, 0);
   listcode
 end {block};
 
+procedure dumpcode;
+  var i: integer;
+
+begin
+  writeln(objfile, cx);
+  for i := 0 to cx do
+    with code[i] do
+    writeln(objfile, i, ord(f), l, a);
+end {dumpcode};
+
 procedure interpret;
   const stacksize = 500;
 
@@ -436,7 +446,7 @@ procedure interpret;
     base := b1
   end {base};
 
-begin writeln(' START PL/0');
+begin dumpcode; writeln(' START PL/0');
   t := 0; b := 1; p := 0;
   s[1] := 0; s[2] := 0; s[3] := 0;
   repeat i := code[p]; p := p + 1;
@@ -493,7 +503,7 @@ begin writeln(' START PL/0');
 end {interpret};
 
 begin {main program}
-  reset(progfile); rewrite(listfile);
+  reset(progfile); rewrite(listfile); rewrite(objfile);
   for ch := chr(0) to chr(127) do ssym[ch] := nul;
   word[ 1] := 'BEGIN     ';    word[ 2] := 'CALL      ';
   word[ 3] := 'CONST     ';    word[ 4] := 'DO        ';

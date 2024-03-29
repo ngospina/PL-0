@@ -12,7 +12,7 @@ fpc -Miso pl0.pas
 
 **Execution**
 ```
-pl0 program-file listing-file
+pl0 program-file listing-file code-file
 ```
 
 **PL/0 EBNF Grammar**
