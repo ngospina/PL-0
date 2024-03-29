@@ -1,4 +1,4 @@
-program PL0(input, output);
+program PL0(input, output, progfile, listfile);
 {PL/0 compiler with code generation}
 label 99;
 
@@ -57,9 +57,10 @@ var ch: char;        {last character read}
              constant: (val: integer);
              variable, prozedure: (level, adr: integer)
          end;
+  progfile, listfile: text;
 
 procedure error(n: integer);
-begin writeln(' ****', ' ': cc - 1, '^', n: 2); err := err + 1
+begin writeln(listfile, ' ****', ' ': cc - 1, '^', n: 2); err := err + 1
 end {error};
 
 procedure getsym;
@@ -67,14 +68,14 @@ procedure getsym;
 
   procedure getch;
   begin if cc = ll then
-        begin if eof(input) then
-              begin write(' PROGRAM INCOMPLETE'); goto 99
+        begin if eof(progfile) then
+              begin write(listfile, ' PROGRAM INCOMPLETE'); goto 99
               end;
-          ll := 0; cc := 0; write(cx: 5, ' ');
-          while not eoln(input) do
-          begin ll := ll + 1; read(ch); write(ch); line[ll] := ch
+          ll := 0; cc := 0; write(listfile, cx: 5, ' ');
+          while not eoln(progfile) do
+          begin ll := ll + 1; read(progfile, ch); write(listfile, ch); line[ll] := ch
           end;
-          writeln; ll := ll + 1; read(line[ll])
+          writeln(listfile); ll := ll + 1; read(progfile, line[ll])
         end;
     cc := cc + 1; ch := line[cc]
   end {getch};
@@ -134,7 +135,7 @@ end {getsym};
 
 procedure gen(x: fct; y, z: integer);
 begin if cx > cxmax then
-      begin write(' PROGRAM TOO LONG'); goto 99
+      begin write(listfile, ' PROGRAM TOO LONG'); goto 99
       end;
   with code[cx] do
   begin f := x; l := y; a := z
@@ -206,7 +207,7 @@ procedure block(lev, tx: integer; fsys: symset);
   begin {list code generated for this block}
     for i := cx0 to cx - 1 do
       with code[i] do
-      writeln(i, mnemonic[f]: 5, l: 3, a: 5)
+      writeln(listfile, i, mnemonic[f]: 5, l: 3, a: 5)
   end {listcode};
 
   procedure statement(fsys: symset);
@@ -450,10 +451,11 @@ begin writeln(' START PL/0');
            end
     end {with, case}
   until p = 0;
-  write(' END PL/0');
+  writeln(' END PL/0');
 end {interpret};
 
 begin {main program}
+  reset(progfile); rewrite(listfile);
   for ch := chr(0) to chr(127) do ssym[ch] := nul;
   word[ 1] := 'BEGIN     ';    word[ 2] := 'CALL      ';
   word[ 3] := 'CONST     ';    word[ 4] := 'DO        ';
@@ -484,6 +486,6 @@ begin {main program}
   cc := 0; cx := 0; ll := 0; ch := ' '; kk := al; getsym;
   block(0, 0, [period] + declbegsys + statbegsys);
   if sym <> period then error(9);
-  if err = 0 then interpret else write(' ERRORS IN PL/0 PROGRAM');
-99: writeln
+  if err = 0 then interpret else writeln(' ERRORS IN PL/0 PROGRAM');
+99: writeln(listfile);
 end.
