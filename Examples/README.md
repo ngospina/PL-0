@@ -1,9 +1,7 @@
 # PL/0 Examples 
-|File          |Description                                                                     |
-|--------------|--------------------------------------------------------------------------------|
-|factorial.pl0 |Facttorial                                                                      |
-|primes.pl0    |Prime numbers                                                                   |
-|sqrsum.pl0    |Squares sum                                                                     |
-|squares.pl0   |Squares                                                                         |
-|wirth-1976.pl0|Niklaus Wirth's PL/0 example from Algorithms + Data Structures = Programs (1976)|
-|wirth-1986.pl0|Niklaus Wirth's PL/0 example from Compilerbau (1986)                            |
+|File          |Description                                 |
+|--------------|--------------------------------------------|
+|wirth-1976.pl0|Niklaus Wirth's PL/0 example[[1]](#1) (1976)|
+
+<a id="1">[1]</a>
+[**PL/0** example](https://github.com/classic-tools/PL-0/blob/main/PL0-1976/Book/wirth1976.md)
