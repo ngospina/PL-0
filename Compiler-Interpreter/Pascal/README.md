@@ -40,9 +40,6 @@ factor     = ident | number | "(" expression ")" .
 |*ssym* array initialization changed from CDC ASCII to ASCII|
 |Constant *nmax* changed from 14 to 9                       |
 |Unneeded page(output) deleted                              |
-|tab character allowed in source code (ignored)             |
-|Lowercase letters allowed in source code                   |
-|Lowercase letters converted to uppercase                   |
 
 <a id="1">[1]</a>
 [**PL/0** Compiler-Interpreter system (Revised CDC Pascal - 1976)](https://github.com/classic-tools/PL-0/blob/main/PL0-1976/Revised-CDC-Pascal/pl0.pas)
