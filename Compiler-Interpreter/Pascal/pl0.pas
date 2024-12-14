@@ -71,19 +71,15 @@ procedure getsym;
         end;
     cc := cc + 1; ch := line[cc]
   end {getch};
-  function upcase(ch: char): char;
-  begin
-    if ch in ['a'..'z'] then upcase := chr((ord(ch) - ord('a')) + ord('A')) else upcase := ch 
-  end {upcase};
 begin {getsym}
-  while ch in [' ', chr(9)] do getch;
-  if ch in ['A'..'Z', 'a'..'z'] then
+  while ch = ' ' do getch;
+  if ch in ['A'..'Z'] then
   begin {identifier or reserved word} k := 0;
     repeat if k < al then
-           begin k := k + 1; a[k] := upcase(ch)
+           begin k := k + 1; a[k] := ch
            end;
       getch
-    until not (ch in ['A'..'Z', 'a'..'z', '0'..'9']);
+    until not (ch in ['A'..'Z', '0'..'9']);
     if k >= kk then kk := k else
       repeat a[kk] := ' '; kk := kk - 1
       until kk = k;
