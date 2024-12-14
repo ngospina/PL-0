@@ -1,449 +1,449 @@
-PROGRAM PL0(INPUT, OUTPUT, PROGFILE);
-{PL/0 COMPILER WITH CODE GENERATION}
-LABEL 99;
-CONST NORW = 11;  {NO. OF RESERVED WORDS}
-  TXMAX = 100;    {LENGTH OF IDENTIFIER TABLE}
-  NMAX = 9;       {MAX NO. OF DIGITS IN NUMBERS}
-  AL = 10;        {LENGTH OF IDENTIFIERS}
-  LXMAX = 81;     {LENGTH OF SOURCE LINE}
-  AMAX = 2047;    {MAXIMUM ADDRESS}
-  LEVMAX = 3;     {MAXIMUM DEPTH OF BLOCK NESTING}
-  CXMAX = 200;    {SIZE OF CODE ARRAY}
-TYPE SYMBOL =
-  (NUL, IDENT, NUMBER, PLUS, MINUS, TIMES, SLASH, ODDSYM,
-   EQL, NEQ, LSS, LEQ, GTR, GEQ, LPAREN, RPAREN, COMMA, SEMICOLON,
-   PERIOD, BECOMES, BEGINSYM, ENDSYM, IFSYM, THENSYM,
-   WHILESYM, DOSYM, CALLSYM, CONSTSYM, VARSYM, PROCSYM);
-  ALFA = PACKED ARRAY [1..AL] OF CHAR;
-  OBJECT = (CONSTANT, VARIABLE, PROZEDURE);
-  SYMSET = SET OF SYMBOL;
-  FCT = (LIT, OPR, LOD, STO, CAL, INT, JMP, JPC);  {FUNCTIONS}
-  INSTRUCTION = PACKED RECORD
-                  F: FCT;        {FUNCTION CODE}
-                  L: 0..LEVMAX;  {LEVEL}
-                  A: 0..AMAX     {DISPLACEMENT ADDRESS}
-                END;
-{ LIT 0, A  :  LOAD CONSTANT A
-  OPR 0, A  :  EXECUTE OPERATION A
-  LOD L, A  :  LOAD VARIABLE L, A
-  STO L, A  :  STORE VARIABLE L, A
-  CAL L, A  :  CALL PROCEDURE A AT LEVEL L
-  INT 0, A  :  INCREMENT T-REGISTER BY A
-  JMP 0, A  :  JUMP TO A
-  JPC 0, A  :  JUMP CONDITIONAL TO A  }
-VAR CH: CHAR;        {LAST CHARACTER READ}
-  SYM: SYMBOL;       {LAST SYMBOL READ}
-  ID: ALFA;          {LAST IDENTIFIER READ}
-  NUM: INTEGER;      {LAST NUMBER READ}
-  CC: INTEGER;       {CHARACTER COUNT}
-  LL: INTEGER;       {LINE LENGTH}
-  KK, ERR: INTEGER;
-  CX: INTEGER;       {CODE ALLOCATION INDEX}
-  LINE: ARRAY [1..LXMAX] OF CHAR;
-  A: ALFA;
-  CODE: ARRAY [0..CXMAX] OF INSTRUCTION;
-  WORD: ARRAY [1..NORW] OF ALFA;
-  WSYM: ARRAY [1..NORW] OF SYMBOL;
-  SSYM: ARRAY [CHAR] OF SYMBOL;
-  MNEMONIC: ARRAY [FCT] OF
-              PACKED ARRAY [1..5] OF CHAR;
-  DECLBEGSYS, STATBEGSYS, FACBEGSYS: SYMSET;
-  TABLE: ARRAY [0..TXMAX] OF
-         RECORD NAME: ALFA;
-           CASE KIND: OBJECT OF
-             CONSTANT: (VAL: INTEGER);
-             VARIABLE, PROZEDURE: (LEVEL, ADR: INTEGER)
-         END;
-  PROGFILE: TEXT;
-PROCEDURE ERROR(N: INTEGER);
-BEGIN WRITELN(' ****', ' ': CC - 1, '^', N: 2); ERR := ERR + 1
-END {ERROR};
-PROCEDURE GETSYM;
-  VAR I, J, K: INTEGER;
-  PROCEDURE GETCH;
-  BEGIN IF CC = LL THEN
-        BEGIN IF EOF(PROGFILE) THEN
-              BEGIN WRITE(' PROGRAM INCOMPLETE'); GOTO 99
-              END;
-          LL := 0; CC := 0; WRITE(CX: 5, ' ');
-          WHILE NOT EOLN(PROGFILE) DO
-          BEGIN LL := LL + 1; READ(PROGFILE, CH); WRITE(CH); LINE[LL] := CH
-          END;
-          WRITELN; LL := LL + 1; READ(PROGFILE, LINE[LL])
-        END;
-    CC := CC + 1; CH := LINE[CC]
-  END {GETCH};
-BEGIN {GETSYM}
-  WHILE CH = ' ' DO GETCH;
-  IF CH IN ['A'..'Z'] THEN
-  BEGIN {IDENTIFIER OR RESERVED WORD} K := 0;
-    REPEAT IF K < AL THEN
-           BEGIN K := K + 1; A[K] := CH
-           END;
-      GETCH
-    UNTIL NOT (CH IN ['A'..'Z', '0'..'9']);
-    IF K >= KK THEN KK := K ELSE
-      REPEAT A[KK] := ' '; KK := KK - 1
-      UNTIL KK = K;
-    ID := A; I := 1; J := NORW;
-    REPEAT K := (I + J) DIV 2;
-      IF ID <= WORD[K] THEN J := K - 1;
-      IF ID >= WORD[K] THEN I := K + 1
-    UNTIL I > J;
-    IF I - 1 > J THEN SYM := WSYM[K] ELSE SYM := IDENT
-  END ELSE
-  IF CH IN ['0'..'9'] THEN
-  BEGIN {NUMBER} K := 0; NUM := 0; SYM := NUMBER;
-    REPEAT NUM := 10 * NUM + (ORD(CH) - ORD('0'));
-      K := K + 1; GETCH
-    UNTIL NOT (CH IN ['0'..'9']);
-    IF K > NMAX THEN ERROR(30)
-  END ELSE
-  IF CH = ':' THEN
-  BEGIN GETCH;
-    IF CH = '=' THEN
-    BEGIN SYM := BECOMES; GETCH
-    END ELSE SYM := NUL
-  END ELSE
-{EXTRA STUFF ADDED TO SUPPORT <= AND >=}
-  IF CH = '<' THEN BEGIN GETCH;
-    IF CH = '=' THEN
-    BEGIN SYM := LEQ; GETCH
-    END ELSE SYM := LSS
-  END ELSE
-  IF CH = '>' THEN
-  BEGIN GETCH;
-    IF CH = '=' THEN
-    BEGIN SYM := GEQ; GETCH
-    END ELSE SYM := GTR
-  END ELSE
-{END OF EXTRA STUFF}
-  BEGIN SYM := SSYM[CH]; GETCH
-  END
-END {GETSYM};
-PROCEDURE GEN(X: FCT; Y, Z: INTEGER);
-BEGIN IF CX > CXMAX THEN
-      BEGIN WRITE(' PROGRAM TOO LONG'); GOTO 99
-      END;
-  WITH CODE[CX] DO
-  BEGIN F := X; L := Y; A := Z
-  END;
-  CX := CX + 1
-END {GEN};
-PROCEDURE TEST(S1, S2: SYMSET; N: INTEGER);
-BEGIN IF NOT (SYM IN S1) THEN
-      BEGIN ERROR(N); S1 := S1 + S2;
-        WHILE NOT (SYM IN S1) DO GETSYM
-      END
-END {TEST};
-PROCEDURE BLOCK(LEV, TX: INTEGER; FSYS: SYMSET);
-  VAR DX: INTEGER;  {DATA ALLOCATION INDEX}
-    TX0: INTEGER;   {INITIAL TABLE INDEX}
-    CX0: INTEGER;   {INITIAL CODE INDEX}
-  PROCEDURE ENTER(K: OBJECT);
-  BEGIN {ENTER OBJECT INTO TABLE}
-    TX := TX + 1;
-    WITH TABLE[TX] DO
-    BEGIN NAME := ID; KIND := K;
-      CASE K OF
-        CONSTANT: BEGIN IF NUM > AMAX THEN
-                        BEGIN ERROR(30); NUM := 0 END;
-                    VAL := NUM
-                  END;
-        VARIABLE: BEGIN LEVEL := LEV; ADR := DX; DX := DX + 1;
-                  END;
-        PROZEDURE: LEVEL := LEV
-      END
-    END
-  END {ENTER};
-  FUNCTION POSITION(ID: ALFA): INTEGER;
-    VAR I: INTEGER;
-  BEGIN {FIND IDENTIFIER ID IN TABLE}
-    TABLE[0].NAME := ID; I := TX;
-    WHILE TABLE[I].NAME <> ID DO I := I - 1;
-    POSITION := I
-  END {POSITION};
-  PROCEDURE CONSTDECLARATION;
-  BEGIN IF SYM = IDENT THEN
-        BEGIN GETSYM;
-          IF SYM IN [EQL, BECOMES] THEN
-          BEGIN IF SYM = BECOMES THEN ERROR(1);
-            GETSYM;
-            IF SYM = NUMBER THEN
-            BEGIN ENTER(CONSTANT); GETSYM
-            END ELSE ERROR(2)
-          END ELSE ERROR(3)
-        END ELSE ERROR(4)
-  END {CONSTDECLARATION};
-  PROCEDURE VARDECLARATION;
-  BEGIN IF SYM = IDENT THEN
-        BEGIN ENTER(VARIABLE); GETSYM
-        END ELSE ERROR(4)
-  END {VARDECLARATION};
-  PROCEDURE LISTCODE;
-    VAR I: INTEGER;
-  BEGIN {LIST CODE GENERATED FOR THIS BLOCK}
-    FOR I := CX0 TO CX - 1 DO
-      WITH CODE[I] DO
-      WRITELN(I, MNEMONIC[F]: 5, L: 3, A: 5)
-  END {LISTCODE};
-  PROCEDURE STATEMENT(FSYS: SYMSET);
-    VAR I, CX1, CX2: INTEGER;
-    PROCEDURE EXPRESSION(FSYS: SYMSET);
-      VAR ADDOP: SYMBOL;
-      PROCEDURE TERM(FSYS: SYMSET);
-        VAR MULOP: SYMBOL;
-        PROCEDURE FACTOR (FSYS: SYMSET);
-          VAR I: INTEGER;
-        BEGIN TEST(FACBEGSYS, FSYS, 24);
-          WHILE SYM IN FACBEGSYS DO
-          BEGIN
-            IF SYM = IDENT THEN
-            BEGIN I := POSITION(ID);
-              IF I = 0 THEN ERROR(11) ELSE
-              WITH TABLE[I] DO
-              CASE KIND OF
-                CONSTANT: GEN(LIT, 0, VAL);
-                VARIABLE: GEN(LOD, LEV - LEVEL, ADR);
-                PROZEDURE: ERROR(21)
-              END;
-              GETSYM
-            END ELSE
-            IF SYM = NUMBER THEN
-            BEGIN IF NUM > AMAX THEN
-                  BEGIN ERROR(30); NUM := 0
-                  END;
-              GEN(LIT, 0, NUM); GETSYM
-            END ELSE
-            IF SYM = LPAREN THEN
-            BEGIN GETSYM; EXPRESSION([RPAREN] + FSYS);
-              IF SYM = RPAREN THEN GETSYM ELSE ERROR(22)
-            END;
-            TEST(FSYS, [LPAREN], 23)
-          END
-        END {FACTOR};
-      BEGIN {TERM} FACTOR(FSYS + [TIMES, SLASH]);
-        WHILE SYM IN [TIMES, SLASH] DO
-        BEGIN MULOP := SYM; GETSYM; FACTOR(FSYS + [TIMES, SLASH]);
-          IF MULOP = TIMES THEN GEN(OPR, 0, 4) ELSE GEN(OPR, 0, 5)
-        END
-      END {TERM};
-    BEGIN {EXPRESSION}
-      IF SYM IN [PLUS, MINUS] THEN
-      BEGIN ADDOP := SYM; GETSYM; TERM(FSYS + [PLUS, MINUS]);
-        IF ADDOP = MINUS THEN GEN(OPR, 0, 1)
-      END ELSE TERM(FSYS + [PLUS, MINUS]);
-      WHILE SYM IN [PLUS, MINUS] DO
-      BEGIN ADDOP := SYM; GETSYM; TERM(FSYS + [PLUS, MINUS]);
-        IF ADDOP = PLUS THEN GEN(OPR, 0, 2) ELSE GEN(OPR, 0, 3)
-      END
-    END {EXPRESSION};
-    PROCEDURE CONDITION(FSYS: SYMSET);
-      VAR RELOP: SYMBOL;
-    BEGIN
-      IF SYM = ODDSYM THEN
-      BEGIN GETSYM; EXPRESSION(FSYS); GEN(OPR, 0, 6)
-      END ELSE
-      BEGIN EXPRESSION([EQL, NEQ, LSS, GTR, LEQ, GEQ] + FSYS);
-        IF NOT (SYM IN [EQL, NEQ, LSS, LEQ, GTR, GEQ]) THEN
-          ERROR(20) ELSE
-        BEGIN RELOP := SYM; GETSYM; EXPRESSION(FSYS);
-          CASE RELOP OF
-            EQL: GEN(OPR, 0, 8);
-            NEQ: GEN(OPR, 0, 9);
-            LSS: GEN(OPR, 0, 10);
-            GEQ: GEN(OPR, 0, 11);
-            GTR: GEN(OPR, 0, 12);
-            LEQ: GEN(OPR, 0, 13)
-          END
-        END
-      END
-    END {CONDITION};
-  BEGIN {STATEMENT}
-    IF SYM = IDENT THEN
-    BEGIN I := POSITION(ID);
-      IF I = 0 THEN ERROR(11) ELSE
-      IF TABLE[I].KIND <> VARIABLE THEN
-        BEGIN {ASSIGNMENT TO NON-VARIABLE} ERROR(12); I := 0
-        END;
-      GETSYM; IF SYM = BECOMES THEN GETSYM ELSE ERROR(13);
-      EXPRESSION(FSYS);
-      IF I <> 0 THEN
-        WITH TABLE[I] DO GEN(STO, LEV - LEVEL, ADR)
-    END ELSE
-    IF SYM = CALLSYM THEN
-    BEGIN GETSYM;
-      IF SYM <> IDENT THEN ERROR(14) ELSE
-      BEGIN I := POSITION(ID);
-        IF I = 0 THEN ERROR(11) ELSE
-        WITH TABLE[I] DO
-        IF KIND = PROZEDURE THEN GEN(CAL, LEV - LEVEL, ADR)
-        ELSE ERROR(15);
-        GETSYM
-      END
-    END ELSE
-    IF SYM = IFSYM THEN
-    BEGIN GETSYM; CONDITION([THENSYM, DOSYM] + FSYS);
-      IF SYM = THENSYM THEN GETSYM ELSE ERROR(16);
-      CX1 := CX; GEN(JPC, 0, 0);
-      STATEMENT(FSYS); CODE[CX1].A := CX
-    END ELSE
-    IF SYM = BEGINSYM THEN
-    BEGIN GETSYM; STATEMENT([SEMICOLON, ENDSYM] + FSYS);
-      WHILE SYM IN [SEMICOLON] + STATBEGSYS DO
-      BEGIN
-        IF SYM = SEMICOLON THEN GETSYM ELSE ERROR(10);
-        STATEMENT([SEMICOLON, ENDSYM] + FSYS)
-      END;
-      IF SYM = ENDSYM THEN GETSYM ELSE ERROR(17)
-    END ELSE
-    IF SYM = WHILESYM THEN
-    BEGIN CX1 := CX; GETSYM; CONDITION([DOSYM] + FSYS);
-      CX2 := CX; GEN(JPC, 0, 0);
-      IF SYM = DOSYM THEN GETSYM ELSE ERROR(18);
-      STATEMENT(FSYS); GEN(JMP, 0, CX1); CODE[CX2].A := CX
-    END;
-    TEST(FSYS, [], 19)
-  END {STATEMENT};
-BEGIN {BLOCK} DX := 3; TX0 := TX; TABLE[TX].ADR := CX; GEN(JMP, 0, 0);
-  IF LEV > LEVMAX THEN ERROR(32);
-  REPEAT
-    IF SYM = CONSTSYM THEN
-    BEGIN GETSYM;
-      REPEAT CONSTDECLARATION;
-        WHILE SYM = COMMA DO
-        BEGIN GETSYM; CONSTDECLARATION
-        END;
-        IF SYM = SEMICOLON THEN GETSYM ELSE ERROR(5)
-      UNTIL SYM <> IDENT
-    END;
-    IF SYM = VARSYM THEN
-    BEGIN GETSYM;
-      REPEAT VARDECLARATION;
-        WHILE SYM = COMMA DO
-        BEGIN GETSYM; VARDECLARATION
-        END;
-        IF SYM = SEMICOLON THEN GETSYM ELSE ERROR(5)
-      UNTIL SYM <> IDENT
-    END;
-    WHILE SYM = PROCSYM DO
-    BEGIN GETSYM;
-      IF SYM = IDENT THEN
-      BEGIN ENTER(PROZEDURE); GETSYM
-      END ELSE ERROR(4);
-      IF SYM = SEMICOLON THEN GETSYM ELSE ERROR(5);
-      BLOCK(LEV + 1, TX, [SEMICOLON] + FSYS);
-      IF SYM = SEMICOLON THEN
-      BEGIN GETSYM; TEST(STATBEGSYS + [IDENT, PROCSYM], FSYS, 6)
-      END ELSE ERROR(5)
-    END;
-    TEST(STATBEGSYS + [IDENT], DECLBEGSYS, 7)
-  UNTIL NOT (SYM IN DECLBEGSYS);
-  CODE[TABLE[TX0].ADR].A := CX;
-  WITH TABLE[TX0] DO
-  ADR := CX; {START ADR OF CODE}
-  CX0 := CX; GEN(INT, 0, DX);
-  STATEMENT([SEMICOLON, ENDSYM] + FSYS);
-  GEN(OPR, 0, 0); {RETURN}
-  TEST(FSYS, [], 8);
-  LISTCODE
-END {BLOCK};
-PROCEDURE INTERPRET;
-  CONST STACKSIZE = 500;
-  VAR P, B, T: INTEGER;  {PROGRAM-, BASE-, TOPSTACK- REGISTERS}
-    I: INSTRUCTION; {INSTRUCTION REGISTER}
-    S: ARRAY [1..STACKSIZE] OF INTEGER;  {DATASTORE}
-  FUNCTION BASE(L: INTEGER): INTEGER;
-    VAR B1: INTEGER;
-  BEGIN B1 := B; {FIND BASE L LEVELS DOWN}
-    WHILE L > 0 DO
-    BEGIN B1 := S[B1]; L := L - 1
-    END;
-    BASE := B1
-  END {BASE};
-BEGIN WRITELN(' START PL/0');
-  T := 0; B := 1; P := 0;
-  S[1] := 0; S[2] := 0; S[3] := 0;
-  REPEAT I := CODE[P]; P := P + 1;
-    WITH I DO
-    CASE F OF
-      LIT: BEGIN T := T + 1; S[T] := A
-           END;
-      OPR: CASE A OF  {OPERATOR}
-              0: BEGIN  {RETURN}
-                   T := B - 1; P := S[T + 3]; B := S[T + 2];
-                 END;
-              1: S[T] := -S[T];
-              2: BEGIN T := T - 1; S[T] := S[T] + S[T + 1]
-                 END;
-              3: BEGIN T := T - 1; S[T] := S[T] - S[T + 1]
-                 END;
-              4: BEGIN T := T - 1; S[T] := S[T] * S[T + 1]
-                 END;
-              5: BEGIN T := T - 1; S[T] := S[T] DIV S[T + 1]
-                 END;
-              6: S[T] := ORD(ODD(S[T]));
-              8: BEGIN T := T - 1; S[T] := ORD(S[T] = S[T + 1])
-                 END;
-              9: BEGIN T := T - 1; S[T] := ORD(S[T] <> S[T + 1])
-                 END;
-             10: BEGIN T := T - 1; S[T] := ORD(S[T] < S[T + 1])
-                 END;
-             11: BEGIN T := T - 1; S[T] := ORD(S[T] >= S[T + 1])
-                 END;
-             12: BEGIN T := T - 1; S[T] := ORD(S[T] > S[T + 1])
-                 END;
-             13: BEGIN T := T - 1; S[T] := ORD(S[T] <= S[T + 1])
-                 END;
-           END;
-      LOD: BEGIN T := T + 1; S[T] := S[BASE(L) + A]
-           END;
-      STO: BEGIN S[BASE(L) + A] := S[T]; WRITELN(S[T]); T := T - 1
-           END;
-      CAL: BEGIN {GENERATE NEW BLOCK MARK}
-             S[T + 1] := BASE(L); S[T + 2] := B; S[T + 3] := P;
-             B := T + 1; P := A
-           END;
-      INT: T := T + A;
-      JMP: P := A;
-      JPC: BEGIN IF S[T] = 0 THEN P := A; T := T - 1
-           END
-    END {WITH, CASE}
-  UNTIL P = 0;
-  WRITE(' END PL/0')
-END {INTERPRET};
-BEGIN {MAIN PROGRAM}
-  RESET(PROGFILE);
-  FOR CH := ' ' TO '~' DO SSYM[CH] := NUL;
-  WORD[ 1] := 'BEGIN     ';    WORD[ 2] := 'CALL      ';
-  WORD[ 3] := 'CONST     ';    WORD[ 4] := 'DO        ';
-  WORD[ 5] := 'END       ';    WORD[ 6] := 'IF        ';
-  WORD[ 7] := 'ODD       ';    WORD[ 8] := 'PROCEDURE ';
-  WORD[ 9] := 'THEN      ';    WORD[10] := 'VAR       ';
-  WORD[11] := 'WHILE     ';
-  WSYM[ 1] := BEGINSYM;   WSYM[ 2] := CALLSYM;
-  WSYM[ 3] := CONSTSYM;   WSYM[ 4] := DOSYM;
-  WSYM[ 5] := ENDSYM;     WSYM[ 6] := IFSYM;
-  WSYM[ 7] := ODDSYM;     WSYM[ 8] := PROCSYM;
-  WSYM[ 9] := THENSYM;    WSYM[10] := VARSYM;
-  WSYM[11] := WHILESYM;
-  SSYM['+'] := PLUS;      SSYM['-'] := MINUS;
-  SSYM['*'] := TIMES;     SSYM['/'] := SLASH;
-  SSYM['('] := LPAREN;    SSYM[')'] := RPAREN;
-  SSYM['='] := EQL;       SSYM[','] := COMMA;
-  SSYM['.'] := PERIOD;    SSYM['#'] := NEQ;
-  SSYM[';'] := SEMICOLON;
-  MNEMONIC[LIT] := ' LIT '; MNEMONIC[OPR] := ' OPR ';
-  MNEMONIC[LOD] := ' LOD '; MNEMONIC[STO] := ' STO ';
-  MNEMONIC[CAL] := ' CAL '; MNEMONIC[INT] := ' INT ';
-  MNEMONIC[JMP] := ' JMP '; MNEMONIC[JPC] := ' JPC ';
-  DECLBEGSYS := [CONSTSYM, VARSYM, PROCSYM];
-  STATBEGSYS := [BEGINSYM, CALLSYM, IFSYM, WHILESYM];
-  FACBEGSYS := [IDENT, NUMBER, LPAREN];
-  ERR := 0;
-  CC := 0; CX := 0; LL := 0; CH := ' '; KK := AL; GETSYM;
-  BLOCK(0, 0, [PERIOD] + DECLBEGSYS + STATBEGSYS);
-  IF SYM <> PERIOD THEN ERROR(9);
-  IF ERR = 0 THEN INTERPRET ELSE WRITE(' ERRORS IN PL/0 PROGRAM');
-99: WRITELN; CLOSE(PROGFILE)
-END.
+program PL0(input, output, progfile);
+{PL/0 compiler with code generation}
+label 99;
+const norw = 11;  {no. of reserved words}
+  txmax = 100;    {length of identifier table}
+  nmax = 9;       {max no. of digits in numbers}
+  al = 10;        {length of identifiers}
+  lxmax = 81;     {length of source line}
+  amax = 2047;    {maximum address}
+  levmax = 3;     {maximum depth of block nesting}
+  cxmax = 200;    {size of code array}
+type symbol =
+  (nul, ident, number, plus, minus, times, slash, oddsym,
+   eql, neq, lss, leq, gtr, geq, lparen, rparen, comma, semicolon,
+   period, becomes, beginsym, endsym, ifsym, thensym,
+   whilesym, dosym, callsym, constsym, varsym, procsym);
+  alfa = packed array [1..al] of char;
+  object = (constant, variable, prozedure);
+  symset = set of symbol;
+  fct = (lit, opr, lod, sto, cal, int, jmp, jpc);  {functions}
+  instruction = packed record
+                  f: fct;        {function code}
+                  l: 0..levmax;  {level}
+                  a: 0..amax     {displacement address}
+                end;
+{ LIT 0, a  :  load constant a
+  OPR 0, a  :  execute operation a
+  LOD l, a  :  load variable l, a
+  STO l, a  :  store variable l, a
+  CAL l, a  :  call procedure a at level l
+  INT 0, a  :  increment t-register by a
+  JMP 0, a  :  jump to a
+  JPC 0, a  :  jump conditional to a  }
+var ch: char;        {last character read}
+  sym: symbol;       {last symbol read}
+  id: alfa;          {last identifier read}
+  num: integer;      {last number read}
+  cc: integer;       {character count}
+  ll: integer;       {line length}
+  kk, err: integer;
+  cx: integer;       {code allocation index}
+  line: array [1..lxmax] of char;
+  a: alfa;
+  code: array [0..cxmax] of instruction;
+  word: array [1..norw] of alfa;
+  wsym: array [1..norw] of symbol;
+  ssym: array [char] of symbol;
+  mnemonic: array [fct] of
+              packed array [1..5] of char;
+  declbegsys, statbegsys, facbegsys: symset;
+  table: array [0..txmax] of
+         record name: alfa;
+           case kind: object of
+             constant: (val: integer);
+             variable, prozedure: (level, adr: integer)
+         end;
+  progfile: text;
+procedure error(n: integer);
+begin writeln(' ****', ' ': cc - 1, '^', n: 2); err := err + 1
+end {error};
+procedure getsym;
+  var i, j, k: integer;
+  procedure getch;
+  begin if cc = ll then
+        begin if eof(progfile) then
+              begin write(' PROGRAM INCOMPLETE'); goto 99
+              end;
+          ll := 0; cc := 0; write(cx: 5, ' ');
+          while not eoln(progfile) do
+          begin ll := ll + 1; read(progfile, ch); write(ch); line[ll] := ch
+          end;
+          writeln; ll := ll + 1; read(progfile, line[ll])
+        end;
+    cc := cc + 1; ch := line[cc]
+  end {getch};
+begin {getsym}
+  while ch = ' ' do getch;
+  if ch in ['A'..'Z'] then
+  begin {identifier or reserved word} k := 0;
+    repeat if k < al then
+           begin k := k + 1; a[k] := ch
+           end;
+      getch
+    until not (ch in ['A'..'Z', '0'..'9']);
+    if k >= kk then kk := k else
+      repeat a[kk] := ' '; kk := kk - 1
+      until kk = k;
+    id := a; i := 1; j := norw;
+    repeat k := (i + j) div 2;
+      if id <= word[k] then j := k - 1;
+      if id >= word[k] then i := k + 1
+    until i > j;
+    if i - 1 > j then sym := wsym[k] else sym := ident
+  end else
+  if ch in ['0'..'9'] then
+  begin {number} k := 0; num := 0; sym := number;
+    repeat num := 10 * num + (ord(ch) - ord('0'));
+      k := k + 1; getch
+    until not (ch in ['0'..'9']);
+    if k > nmax then error(30)
+  end else
+  if ch = ':' then
+  begin getch;
+    if ch = '=' then
+    begin sym := becomes; getch
+    end else sym := nul
+  end else
+{extra stuff added to support <= and >=}
+  if ch = '<' then begin getch;
+    if ch = '=' then
+    begin sym := leq; getch
+    end else sym := lss
+  end else
+  if ch = '>' then
+  begin getch;
+    if ch = '=' then
+    begin sym := geq; getch
+    end else sym := gtr
+  end else
+{end of extra stuff}
+  begin sym := ssym[ch]; getch
+  end
+end {getsym};
+procedure gen(x: fct; y, z: integer);
+begin if cx > cxmax then
+      begin write(' PROGRAM TOO LONG'); goto 99
+      end;
+  with code[cx] do
+  begin f := x; l := y; a := z
+  end;
+  cx := cx + 1
+end {gen};
+procedure test(s1, s2: symset; n: integer);
+begin if not (sym in s1) then
+      begin error(n); s1 := s1 + s2;
+        while not (sym in s1) do getsym
+      end
+end {test};
+procedure block(lev, tx: integer; fsys: symset);
+  var dx: integer;  {data allocation index}
+    tx0: integer;   {initial table index}
+    cx0: integer;   {initial code index}
+  procedure enter(k: object);
+  begin {enter object into table}
+    tx := tx + 1;
+    with table[tx] do
+    begin name := id; kind := k;
+      case k of
+        constant: begin if num > amax then
+                        begin error(30); num := 0 end;
+                    val := num
+                  end;
+        variable: begin level := lev; adr := dx; dx := dx + 1;
+                  end;
+        prozedure: level := lev
+      end
+    end
+  end {enter};
+  function position(id: alfa): integer;
+    var i: integer;
+  begin {find identifier id in table}
+    table[0].name := id; i := tx;
+    while table[i].name <> id do i := i - 1;
+    position := i
+  end {position};
+  procedure constdeclaration;
+  begin if sym = ident then
+        begin getsym;
+          if sym in [eql, becomes] then
+          begin if sym = becomes then error(1);
+            getsym;
+            if sym = number then
+            begin enter(constant); getsym
+            end else error(2)
+          end else error(3)
+        end else error(4)
+  end {constdeclaration};
+  procedure vardeclaration;
+  begin if sym = ident then
+        begin enter(variable); getsym
+        end else error(4)
+  end {vardeclaration};
+  procedure listcode;
+    var i: integer;
+  begin {list code generated for this block}
+    for i := cx0 to cx - 1 do
+      with code[i] do
+      writeln(i, mnemonic[f]: 5, l: 3, a: 5)
+  end {listcode};
+  procedure statement(fsys: symset);
+    var i, cx1, cx2: integer;
+    procedure expression(fsys: symset);
+      var addop: symbol;
+      procedure term(fsys: symset);
+        var mulop: symbol;
+        procedure factor (fsys: symset);
+          var i: integer;
+        begin test(facbegsys, fsys, 24);
+          while sym in facbegsys do
+          begin
+            if sym = ident then
+            begin i := position(id);
+              if i = 0 then error(11) else
+              with table[i] do
+              case kind of
+                constant: gen(lit, 0, val);
+                variable: gen(lod, lev - level, adr);
+                prozedure: error(21)
+              end;
+              getsym
+            end else
+            if sym = number then
+            begin if num > amax then
+                  begin error(30); num := 0
+                  end;
+              gen(lit, 0, num); getsym
+            end else
+            if sym = lparen then
+            begin getsym; expression([rparen] + fsys);
+              if sym = rparen then getsym else error(22)
+            end;
+            test(fsys, [lparen], 23)
+          end
+        end {factor};
+      begin {term} factor(fsys + [times, slash]);
+        while sym in [times, slash] do
+        begin mulop := sym; getsym; factor(fsys + [times, slash]);
+          if mulop = times then gen(opr, 0, 4) else gen(opr, 0, 5)
+        end
+      end {term};
+    begin {expression}
+      if sym in [plus, minus] then
+      begin addop := sym; getsym; term(fsys + [plus, minus]);
+        if addop = minus then gen(opr, 0, 1)
+      end else term(fsys + [plus, minus]);
+      while sym in [plus, minus] do
+      begin addop := sym; getsym; term(fsys + [plus, minus]);
+        if addop = plus then gen(opr, 0, 2) else gen(opr, 0, 3)
+      end
+    end {expression};
+    procedure condition(fsys: symset);
+      var relop: symbol;
+    begin
+      if sym = oddsym then
+      begin getsym; expression(fsys); gen(opr, 0, 6)
+      end else
+      begin expression([eql, neq, lss, gtr, leq, geq] + fsys);
+        if not (sym in [eql, neq, lss, leq, gtr, geq]) then
+          error(20) else
+        begin relop := sym; getsym; expression(fsys);
+          case relop of
+            eql: gen(opr, 0, 8);
+            neq: gen(opr, 0, 9);
+            lss: gen(opr, 0, 10);
+            geq: gen(opr, 0, 11);
+            gtr: gen(opr, 0, 12);
+            leq: gen(opr, 0, 13)
+          end
+        end
+      end
+    end {condition};
+  begin {statement}
+    if sym = ident then
+    begin i := position(id);
+      if i = 0 then error(11) else
+      if table[i].kind <> variable then
+        begin {assignment to non-variable} error(12); i := 0
+        end;
+      getsym; if sym = becomes then getsym else error(13);
+      expression(fsys);
+      if i <> 0 then
+        with table[i] do gen(sto, lev - level, adr)
+    end else
+    if sym = callsym then
+    begin getsym;
+      if sym <> ident then error(14) else
+      begin i := position(id);
+        if i = 0 then error(11) else
+        with table[i] do
+        if kind = prozedure then gen(cal, lev - level, adr)
+        else error(15);
+        getsym
+      end
+    end else
+    if sym = ifsym then
+    begin getsym; condition([thensym, dosym] + fsys);
+      if sym = thensym then getsym else error(16);
+      cx1 := cx; gen(jpc, 0, 0);
+      statement(fsys); code[cx1].a := cx
+    end else
+    if sym = beginsym then
+    begin getsym; statement([semicolon, endsym] + fsys);
+      while sym in [semicolon] + statbegsys do
+      begin
+        if sym = semicolon then getsym else error(10);
+        statement([semicolon, endsym] + fsys)
+      end;
+      if sym = endsym then getsym else error(17)
+    end else
+    if sym = whilesym then
+    begin cx1 := cx; getsym; condition([dosym] + fsys);
+      cx2 := cx; gen(jpc, 0, 0);
+      if sym = dosym then getsym else error(18);
+      statement(fsys); gen(jmp, 0, cx1); code[cx2].a := cx
+    end;
+    test(fsys, [], 19)
+  end {statement};
+begin {block} dx := 3; tx0 := tx; table[tx].adr := cx; gen(jmp, 0, 0);
+  if lev > levmax then error(32);
+  repeat
+    if sym = constsym then
+    begin getsym;
+      repeat constdeclaration;
+        while sym = comma do
+        begin getsym; constdeclaration
+        end;
+        if sym = semicolon then getsym else error(5)
+      until sym <> ident
+    end;
+    if sym = varsym then
+    begin getsym;
+      repeat vardeclaration;
+        while sym = comma do
+        begin getsym; vardeclaration
+        end;
+        if sym = semicolon then getsym else error(5)
+      until sym <> ident
+    end;
+    while sym = procsym do
+    begin getsym;
+      if sym = ident then
+      begin enter(prozedure); getsym
+      end else error(4);
+      if sym = semicolon then getsym else error(5);
+      block(lev + 1, tx, [semicolon] + fsys);
+      if sym = semicolon then
+      begin getsym; test(statbegsys + [ident, procsym], fsys, 6)
+      end else error(5)
+    end;
+    test(statbegsys + [ident], declbegsys, 7)
+  until not (sym in declbegsys);
+  code[table[tx0].adr].a := cx;
+  with table[tx0] do
+  adr := cx; {start adr of code}
+  cx0 := cx; gen(int, 0, dx);
+  statement([semicolon, endsym] + fsys);
+  gen(opr, 0, 0); {return}
+  test(fsys, [], 8);
+  listcode
+end {block};
+procedure interpret;
+  const stacksize = 500;
+  var p, b, t: integer;  {program-, base-, topstack- registers}
+    i: instruction; {instruction register}
+    s: array [1..stacksize] of integer;  {datastore}
+  function base(l: integer): integer;
+    var b1: integer;
+  begin b1 := b; {find base l levels down}
+    while l > 0 do
+    begin b1 := s[b1]; l := l - 1
+    end;
+    base := b1
+  end {base};
+begin writeln(' START PL/0');
+  t := 0; b := 1; p := 0;
+  s[1] := 0; s[2] := 0; s[3] := 0;
+  repeat i := code[p]; p := p + 1;
+    with i do
+    case f of
+      lit: begin t := t + 1; s[t] := a
+           end;
+      opr: case a of  {operator}
+              0: begin  {return}
+                   t := b - 1; p := s[t + 3]; b := s[t + 2];
+                 end;
+              1: s[t] := -s[t];
+              2: begin t := t - 1; s[t] := s[t] + s[t + 1]
+                 end;
+              3: begin t := t - 1; s[t] := s[t] - s[t + 1]
+                 end;
+              4: begin t := t - 1; s[t] := s[t] * s[t + 1]
+                 end;
+              5: begin t := t - 1; s[t] := s[t] div s[t + 1]
+                 end;
+              6: s[t] := ord(odd(s[t]));
+              8: begin t := t - 1; s[t] := ord(s[t] = s[t + 1])
+                 end;
+              9: begin t := t - 1; s[t] := ord(s[t] <> s[t + 1])
+                 end;
+             10: begin t := t - 1; s[t] := ord(s[t] < s[t + 1])
+                 end;
+             11: begin t := t - 1; s[t] := ord(s[t] >= s[t + 1])
+                 end;
+             12: begin t := t - 1; s[t] := ord(s[t] > s[t + 1])
+                 end;
+             13: begin t := t - 1; s[t] := ord(s[t] <= s[t + 1])
+                 end;
+           end;
+      lod: begin t := t + 1; s[t] := s[base(l) + a]
+           end;
+      sto: begin s[base(l) + a] := s[t]; writeln(s[t]); t := t - 1
+           end;
+      cal: begin {generate new block mark}
+             s[t + 1] := base(l); s[t + 2] := b; s[t + 3] := p;
+             b := t + 1; p := a
+           end;
+      int: t := t + a;
+      jmp: p := a;
+      jpc: begin if s[t] = 0 then p := a; t := t - 1
+           end
+    end {with, case}
+  until p = 0;
+  write(' END PL/0')
+end {interpret};
+begin {main program}
+  reset(progfile);
+  for ch := ' ' to '~' do ssym[ch] := nul;
+  word[ 1] := 'BEGIN     ';    word[ 2] := 'CALL      ';
+  word[ 3] := 'CONST     ';    word[ 4] := 'DO        ';
+  word[ 5] := 'END       ';    word[ 6] := 'IF        ';
+  word[ 7] := 'ODD       ';    word[ 8] := 'PROCEDURE ';
+  word[ 9] := 'THEN      ';    word[10] := 'VAR       ';
+  word[11] := 'WHILE     ';
+  wsym[ 1] := beginsym;   wsym[ 2] := callsym;
+  wsym[ 3] := constsym;   wsym[ 4] := dosym;
+  wsym[ 5] := endsym;     wsym[ 6] := ifsym;
+  wsym[ 7] := oddsym;     wsym[ 8] := procsym;
+  wsym[ 9] := thensym;    wsym[10] := varsym;
+  wsym[11] := whilesym;
+  ssym['+'] := plus;      ssym['-'] := minus;
+  ssym['*'] := times;     ssym['/'] := slash;
+  ssym['('] := lparen;    ssym[')'] := rparen;
+  ssym['='] := eql;       ssym[','] := comma;
+  ssym['.'] := period;    ssym['#'] := neq;
+  ssym[';'] := semicolon;
+  mnemonic[lit] := ' LIT '; mnemonic[opr] := ' OPR ';
+  mnemonic[lod] := ' LOD '; mnemonic[sto] := ' STO ';
+  mnemonic[cal] := ' CAL '; mnemonic[int] := ' INT ';
+  mnemonic[jmp] := ' JMP '; mnemonic[jpc] := ' JPC ';
+  declbegsys := [constsym, varsym, procsym];
+  statbegsys := [beginsym, callsym, ifsym, whilesym];
+  facbegsys := [ident, number, lparen];
+  err := 0;
+  cc := 0; cx := 0; ll := 0; ch := ' '; kk := al; getsym;
+  block(0, 0, [period] + declbegsys + statbegsys);
+  if sym <> period then error(9);
+  if err = 0 then interpret else write(' ERRORS IN PL/0 PROGRAM');
+99: writeln; close(progfile)
+end.
