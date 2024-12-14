@@ -22,7 +22,6 @@ block      = [ "CONST" ident "=" number { "," ident "=" number } ";" ]
              [ "VAR" ident { "," ident } ";" ]
              { "PROCEDURE" ident ";" block ";" } statement .
 statement  = [ ident ":=" expression | "CALL" ident |
-             "?" ident | "!" expression |
              "BEGIN" statement { ";" statement } "END" |
              "IF" condition "THEN" statement |
              "WHILE" condition "DO" statement ] .
