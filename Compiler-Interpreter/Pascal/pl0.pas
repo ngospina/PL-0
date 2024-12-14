@@ -48,8 +48,6 @@ var ch: char;        {last character read}
   ssym: array [char] of symbol;
   mnemonic: array [fct] of
               packed array [1..5] of char;
-  message: array [1..32] of
-              packed array [1..60] of char;
   declbegsys, statbegsys, facbegsys: symset;
   table: array [0..txmax] of
          record name: alfa;
@@ -59,7 +57,7 @@ var ch: char;        {last character read}
          end;
   outnr: integer;
 procedure error(n: integer);
-begin writeln(' ****', ' ': cc - 1, '^', n: 2, ' ', message[n]: 60); err := err + 1
+begin writeln(' ****', ' ': cc - 1, '^', n: 2); err := err + 1
 end {error};
 procedure getsym;
   var i, j, k: integer;
@@ -479,38 +477,6 @@ begin {main program}
   mnemonic[lod] := ' LOD '; mnemonic[sto] := ' STO ';
   mnemonic[cal] := ' CAL '; mnemonic[int] := ' INT ';
   mnemonic[jmp] := ' JMP '; mnemonic[jpc] := ' JPC ';
-  message[ 1] := 'Use = instead of :=                                         ';
-  message[ 2] := '= must be followed by a number                              ';
-  message[ 3] := 'Identifier must be followed by =                            ';
-  message[ 4] := 'const, var, procedure must be followed by an identifier     ';
-  message[ 5] := 'Semicolon or comma missing                                  ';
-  message[ 6] := 'Incorrect symbol after procedure declaration                ';
-  message[ 7] := 'Statement expected                                          ';
-  message[ 8] := 'Incorrect symbol after statement part in block              ';
-  message[ 9] := 'Period expected                                             ';
-  message[10] := 'Semicolon between statements is missing                     ';
-  message[11] := 'Undeclared identifier                                       ';
-  message[12] := 'Assignment to constant or procedure is not allowed          ';
-  message[13] := 'Assignment operator := expected                             ';
-  message[14] := 'call must be followed by an identifier                      ';
-  message[15] := 'Call of a constant or a variable is meaningless             ';
-  message[16] := 'then expected                                               ';
-  message[17] := 'Semicolon or end expected                                   ';
-  message[18] := 'do expected                                                 ';
-  message[19] := 'Incorrect symbol following statement                        ';
-  message[20] := 'Relational operator expected                                ';
-  message[21] := 'Expression must not contain a procedure identifier          ';
-  message[22] := 'Right parenthesis missing                                   ';
-  message[23] := 'The preceding factor can not be followed by this symbol     ';
-  message[24] := 'An expression can not begin with this symbol                ';
-  message[25] := '                                                            ';
-  message[26] := '                                                            ';
-  message[27] := '                                                            ';
-  message[28] := '                                                            ';
-  message[29] := '                                                            ';
-  message[30] := 'This number is too large                                    ';
-  message[31] := '                                                            ';
-  message[32] := 'Too many levels (too deep block nesting)                    ';
   declbegsys := [constsym, varsym, procsym];
   statbegsys := [beginsym, callsym, ifsym, whilesym];
   facbegsys := [ident, number, lparen];
