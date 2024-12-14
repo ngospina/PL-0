@@ -74,14 +74,14 @@ procedure getsym;
     cc := cc + 1; ch := line[cc]
   end {getch};
 begin {getsym}
-  while ch = ' ' do getch;
-  if ch in ['A'..'Z'] then
+  while ch in [' ', chr(9)] do getch;
+  if ch in ['A'..'Z', 'a'..'z'] then
   begin {identifier or reserved word} k := 0;
     repeat if k < al then
            begin k := k + 1; a[k] := ch
            end;
       getch
-    until not (ch in ['A'..'Z', '0'..'9']);
+    until not (ch in ['A'..'Z', 'a'..'z', '0'..'9']);
     if k >= kk then kk := k else
       repeat a[kk] := ' '; kk := kk - 1
       until kk = k;

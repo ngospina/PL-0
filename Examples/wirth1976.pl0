@@ -1,37 +1,45 @@
-CONST M = 7, N = 85;
-VAR X, Y, Z, Q, R;
-PROCEDURE MULTIPLY;
-  VAR A, B;
-BEGIN A := X; B := Y; Z := 0;
-  WHILE B > 0 DO
+CONST m = 7; n = 85;
+
+VAR x, y, z, q, r;
+
+PROCEDURE multiply;
+  VAR a, b;
+
+BEGIN a := x; b := y; z := 0;
+  WHILE b > 0 DO
   BEGIN
-    IF ODD B THEN Z := Z + A;
-    A := 2 * A; B := B / 2
+    IF ODD b THEN z := z + a;
+    a := 2 * a; b := b / 2
   END
 END;
-PROCEDURE DIVIDE;
-  VAR W;
+
+PROCEDURE divide;
+  VAR w;
+
 BEGIN
-  R := X; Q := 0; W := Y;
-  WHILE W <= R DO W := 2 * W;
-  WHILE W > Y DO
-  BEGIN Q := 2 * Q; W := W / 2;
-    IF W <= R THEN
-    BEGIN R := R - W; Q := Q + 1
+  r := x; q := 0; w := y;
+  WHILE w <= r DO w := 2 * w;
+  WHILE w > y DO
+  BEGIN q := 2 * q; w := w / 2;
+    IF w <= r THEN
+    BEGIN r := r - w; q := q + 1
     END
   END
 END;
-PROCEDURE GCD;
-  VAR F, G;
-BEGIN F := X; G := Y;
-  WHILE F # G DO
-  BEGIN IF F < G THEN G := G - F;
-    IF G < F THEN F := F - G
+
+PROCEDURE gcd;
+  VAR f, g;
+
+BEGIN f := x; g := y;
+  WHILE f # g DO
+  BEGIN IF f < g THEN g := g - f;
+    IF g < f THEN f := f - g
   END;
-  Z := F
+  z := f
 END;
+
 BEGIN
-  X := M; Y := N; CALL MULTIPLY;
-  Y := 25; Y := 3; CALL DIVIDE;
-  X := 84; Y := 36; CALL GCD
-END.  
+  x := m; y := n; CALL multiply;
+  y := 25; y := 3; CALL divide;
+  x := 84; y := 36; CALL gcd
+END.

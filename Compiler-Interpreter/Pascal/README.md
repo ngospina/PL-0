@@ -41,6 +41,8 @@ factor     = ident | number | "(" expression ")" .
 |Constant *lxmax* (length of source line) added             |
 |Unneeded page(output) deleted                              |
 |Input program file added                                   |
+|tab character allowed in source code (ignored)             |
+|Lowercase letters allowed in source code                   |
 
 <a id="1">[1]</a>
 [**PL/0** Compiler-Interpreter system (Revised CDC Pascal - 1976)](https://github.com/classic-tools/PL-0/blob/main/PL0-1976/Revised-CDC-Pascal/pl0.pas)
