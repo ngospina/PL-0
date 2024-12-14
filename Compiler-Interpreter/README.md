@@ -12,7 +12,8 @@ fpc -Miso pl0.pas
 
 **Execution**
 ```
-pl0 program-file listing-file
+pl0 < program-file
+pl0 < program-file > listing-file
 ```
 
 **PL/0 EBNF Grammar**
@@ -33,6 +34,6 @@ factor     = ident | number | "(" expression ")" .
 ``` 
 
 <a id="1">[1]</a>
-Original [**PL/0** Compiler-Interpreter system (ISO Pascal)](https://github.com/classic-tools/PL-0/tree/main/ISO-Pascal)\
+[**PL/0** Compiler-Interpreter system (ISO Pascal)](https://github.com/classic-tools/PL-0/tree/main/ISO-Pascal)\
 <a id="2">[2]</a>
 [**PL/0** Compiler-Interpreter system (CDC Pascal - 1976)](https://github.com/classic-tools/PL-0/tree/main/CDC-Pascal)
