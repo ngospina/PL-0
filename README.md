@@ -4,4 +4,3 @@
 |Directory           |Description                     |
 |--------------------|--------------------------------|
 |Compiler-Interpreter|PL/0 Compiler-Interpreter system|
-|Examples            |PL/0 source code examples       |
