@@ -118,7 +118,7 @@ begin {getsym}
     begin sym := becomes; getch
     end else sym := nul
   end else
-{extra stuff added to support <=, >=, and comments}
+{extra stuff added to support <= and >=}
   if ch = '<' then begin getch;
     if ch = '=' then
     begin sym := leq; getch
@@ -469,7 +469,7 @@ begin {main program}
   wsym[11] := whilesym;
   ssym['?'] := readsym;   ssym['!'] := writesym;
   ssym['+'] := plus;      ssym['-'] := minus;
-  ssym['*'] := times;     ssym['/'] := slash;
+  ssym['*'] := times;     ssym['/'] := slash;  
   ssym['='] := eql;       ssym[','] := comma;
   ssym['.'] := period;    ssym['#'] := neq;
   ssym[';'] := semicolon; ssym[')'] := rparen;
