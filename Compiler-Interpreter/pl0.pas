@@ -22,19 +22,17 @@ type symbol =
   instruction = packed record
                   f: fct;        {function code}
                   l: 0..levmax;  {level}
-                  a: 0..amax     {displacement address}
+                  a: 0..amax;    {displacement address}
                 end;
 
-{
-  LIT 0, a  :  load constant a
+{ LIT 0, a  :  load constant a
   OPR 0, a  :  execute operation a
   LOD l, a  :  load variable l, a
   STO l, a  :  store variable l, a
   CAL l, a  :  call procedure a at level l
   INT 0, a  :  increment t-register by a
   JMP 0, a  :  jump to a
-  JPC 0, a  :  jump conditional to a
-}
+  JPC 0, a  :  jump conditional to a  }
 
 var ch: char;        {last character read}
   sym: symbol;       {last symbol read}
@@ -117,7 +115,7 @@ begin {getsym}
   begin getch;
     if ch = '=' then
     begin sym := becomes; getch
-    end else sym := nul
+    end else sym := nul;
   end else
   if ch = '<' then 
   begin getch;
@@ -191,7 +189,8 @@ procedure block(lev, tx: integer; fsys: symset);
             getsym;
             if sym = number then
             begin enter(constant); getsym
-            end else error(2)
+            end
+            else error(2)
           end else error(3)
         end else error(4)
   end {constdeclaration};
@@ -286,7 +285,7 @@ procedure block(lev, tx: integer; fsys: symset);
             lss: gen(opr, 0, 10);
             geq: gen(opr, 0, 11);
             gtr: gen(opr, 0, 12);
-            leq: gen(opr, 0, 13)
+            leq: gen(opr, 0, 13);
           end
         end
       end
@@ -358,29 +357,32 @@ begin {block} dx := 3; tx0 := tx; table[tx].adr := cx; gen(jmp, 0, 0);
         begin getsym; vardeclaration
         end;
         if sym = semicolon then getsym else error(5)
-      until sym <> ident
+      until sym <> ident;
     end;
     while sym = procsym do
     begin getsym;
       if sym = ident then
       begin enter(prozedure); getsym
-      end else error(4);
+      end
+      else error(4);
       if sym = semicolon then getsym else error(5);
       block(lev + 1, tx, [semicolon] + fsys);
       if sym = semicolon then
       begin getsym; test(statbegsys + [ident, procsym], fsys, 6)
-      end else error(5)
+      end
+      else error(5)
     end;
     test(statbegsys + [ident], declbegsys, 7)
   until not (sym in declbegsys);
   code[table[tx0].adr].a := cx;
   with table[tx0] do
-  adr := cx; {start adr of code}
+  begin adr := cx; {start adr of code}
+  end;
   cx0 := cx; gen(int, 0, dx);
   statement([semicolon, endsym] + fsys);
   gen(opr, 0, 0); {return}
   test(fsys, [], 8);
-  listcode
+  listcode;
 end {block};
 
 procedure interpret;
@@ -449,7 +451,7 @@ begin writeln(' START PL/0');
            end
     end {with, case}
   until p = 0;
-  writeln(' END PL/0')
+  writeln(' END PL/0');
 end {interpret};
 
 begin {main program}
@@ -480,10 +482,10 @@ begin {main program}
   declbegsys := [constsym, varsym, procsym];
   statbegsys := [beginsym, callsym, ifsym, whilesym];
   facbegsys := [ident, number, lparen];
-  err := 0;
+  page(output); err := 0;
   cc := 0; cx := 0; ll := 0; ch := ' '; kk := al; getsym;
   block(0, 0, [period] + declbegsys + statbegsys);
   if sym <> period then error(9);
   if err = 0 then interpret else writeln(' ERRORS IN PL/0 PROGRAM');
-99: writeln(listfile)
+99: writeln(listfile);
 end.
